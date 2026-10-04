@@ -1,17 +1,96 @@
-site_name: jeff-docker
+site_name: Jeff Docker
+site_description: CPU-first, multi-arch Docker distribution for Jeff (TypeSafe jev-compatible structured-classification API powered by GLiFormer), with GHCR images, Docker Compose and Dokploy support.
 site_url: https://tommasomarchionni.github.io/jeff-docker/
 repo_url: https://github.com/tommasomarchionni/jeff-docker
+repo_name: tommasomarchionni/jeff-docker
+edit_uri: edit/main/docs/
+docs_dir: docs
+
+extra_css:
+  - stylesheets/extra.css
+
 theme:
   name: material
-  features: [content.code.copy, navigation.sections]
-markdown_extensions: [admonition, pymdownx.superfences, tables]
+  language: en
+  icon:
+    repo: fontawesome/brands/github
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: teal
+      accent: teal
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: teal
+      accent: teal
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - navigation.footer
+    - content.code.copy
+    - content.tabs.link
+    - content.action.edit
+    - search.suggest
+    - search.highlight
+    - toc.follow
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.highlight
+  - pymdownx.inlinehilite
+  - tables
+  - toc:
+      permalink: true
+
+plugins:
+  - search
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/tommasomarchionni
+    - icon: fontawesome/brands/docker
+      link: https://github.com/tommasomarchionni/jeff-docker/pkgs/container/jeff-docker
+
 nav:
   - Home: index.md
-  - Quick start: quick-start.md
-  - Configuration: configuration.md
-  - Dokploy (Proxmox LXC): dokploy.md
-  - Performance: performance.md
+  - Getting started:
+      - Quick start (beginners): quick-start.md
+      - Platform setup (macOS, Windows, Linux, Proxmox): platform-setup.md
+      - Prebuilt image (GHCR): prebuilt-image.md
+      - Docker Compose: docker-compose-guide.md
+      - Dokploy: dokploy.md
+      - Plain Docker: docker-plain.md
+  - Usage:
+      - Using the API: api-usage.md
+  - Configuration:
+      - Environment variables: environment-variables.md
+      - Models: models.md
+      - ONNX backend: onnx.md
+  - Operations:
+      - Persistence and backups: persistence.md
+      - Upgrades and versioning: upgrades.md
+      - Monitoring and logs: monitoring.md
+      - Performance: performance.md
   - Security: security.md
+  - Testing and CI: testing.md
   - Troubleshooting: troubleshooting.md
+  - FAQ: faq.md
   - Experimental:
+      - NVIDIA GPU: experimental/nvidia-gpu.md
       - AMD ROCm: experimental/amd-rocm.md
