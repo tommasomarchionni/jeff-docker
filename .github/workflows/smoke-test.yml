@@ -130,11 +130,6 @@ jobs:
           for i in $(seq 1 60); do curl -sf http://127.0.0.1:8000/healthz && break; sleep 3; done
           docker logs jeff 2>&1 | grep -q "Model already present"
 
-      - name: Stats reflect the configured backend
-        run: |
-          curl -sf http://127.0.0.1:8000/stats -H "Authorization: Bearer $API_KEY" | tee /tmp/stats.json | jq .
-          jq -e '.backend.backend == "${{ matrix.backend }}" and .requests >= 1' /tmp/stats.json
-
       - name: Latency sample (informational)
         run: |
           for i in 1 2 3 4 5; do
@@ -142,6 +137,11 @@ jobs:
               -H "Authorization: Bearer $API_KEY" -H "Content-Type: application/json" \
               -d '{"state":"Login page is slow on mobile.","model":"jev-latest","questions":{"severity":{"type":"score","criteria":["low","medium","high"]}}}'
           done | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Stats reflect the configured backend (counters reset on restart; 5 requests above)
+        run: |
+          curl -sf http://127.0.0.1:8000/stats -H "Authorization: Bearer $API_KEY" | tee /tmp/stats.json | jq .
+          jq -e '.backend.backend == "${{ matrix.backend }}" and .requests >= 5' /tmp/stats.json
 
       - name: Rate limit returns 429 when exceeded
         run: |
