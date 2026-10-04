@@ -1,0 +1,9 @@
+.git
+.github
+docs
+site
+tests
+models
+.env
+*.md
+!README.md
