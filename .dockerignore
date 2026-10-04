@@ -5,5 +5,7 @@ site
 tests
 models
 .env
+.env.*
+!.env.example
 *.md
 !README.md
