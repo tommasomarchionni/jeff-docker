@@ -6,6 +6,8 @@ versioning: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-10-04
+
 ### Fixed
 - Default `JEFF_CPU_LIMIT` is now `0` (no limit): the previous default `8`
   made deploys fail on hosts/LXC with fewer than 8 CPUs ("range of CPUs is
@@ -43,6 +45,7 @@ versioning: [SemVer](https://semver.org/).
   idempotent model download, Compose files (local, prebuilt, Dokploy,
   experimental ROCm), CI, GHCR publish workflow, MkDocs site.
 
-[Unreleased]: https://github.com/tommasomarchionni/jeff-docker/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/tommasomarchionni/jeff-docker/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/tommasomarchionni/jeff-docker/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/tommasomarchionni/jeff-docker/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/tommasomarchionni/jeff-docker/releases/tag/v0.1.0
