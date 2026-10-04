@@ -1,0 +1,18 @@
+# EXPERIMENTAL - NVIDIA CUDA overlay (Linux amd64 + NVIDIA Container Toolkit).
+# Builds the image with CUDA PyTorch wheels.
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.nvidia.experimental.yml up -d --build
+# Docs: https://tommasomarchionni.github.io/jeff-docker/experimental/nvidia-gpu/
+services:
+  jeff:
+    build:
+      args:
+        TORCH_INDEX_URL: ${TORCH_INDEX_URL:-https://download.pytorch.org/whl/cu130}
+        JEFF_DOCKER_VERSION: local-cuda
+    image: jeff-docker:local-cuda
+    environment:
+      JEFF_DEVICE: cuda
+      JEFF_DTYPE: ${JEFF_DTYPE:-bf16}
+      JEFF_MAX_BATCH: ${JEFF_MAX_BATCH:-32}
+      JEFF_MAX_WAIT_MS: ${JEFF_MAX_WAIT_MS:-5}
+    gpus: all
