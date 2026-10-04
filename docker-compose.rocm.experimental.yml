@@ -1,0 +1,17 @@
+# EXPERIMENTAL - unsupported. Overlay for AMD ROCm (e.g. Radeon 780M gfx1103).
+# Usage: docker compose -f docker-compose.yml -f docker-compose.rocm.experimental.yml up -d --build
+services:
+  jeff:
+    build:
+      args:
+        UV_EXTRAS: dev
+    environment:
+      JEFF_DEVICE: cuda            # PyTorch ROCm exposes HIP as "cuda"
+      HSA_OVERRIDE_GFX_VERSION: ${HSA_OVERRIDE_GFX_VERSION:-11.0.0}
+      HSA_ENABLE_SDMA: "0"
+    devices:
+      - /dev/kfd:/dev/kfd
+      - /dev/dri:/dev/dri
+    group_add:
+      - video
+      - render
