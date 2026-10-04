@@ -15,7 +15,7 @@ on a normal CPU, at home or on a server.
 - **One command to run**: prebuilt multi-arch image on GHCR
   (`linux/amd64`, `linux/arm64`), no Python toolchain on your machine.
 - **CPU-only PyTorch**: the image ships CPU wheels instead of the default
-  CUDA stack, roughly 5 GB smaller and faster to pull.
+  CUDA stack: about 0.4 GB to pull instead of 3.2 GB (measured on amd64).
 - **Model downloaded once**: weights land in a persistent volume and are
   reused on every restart, redeploy or upgrade.
 - **Secure by default**: the container refuses to start without an API key,

@@ -23,7 +23,7 @@ get calibrated answers back — on a plain CPU.
 ## Highlights
 
 - Prebuilt multi-arch image on GHCR (`linux/amd64`, `linux/arm64`)
-- **CPU-only PyTorch**: no CUDA stack, ~5 GB smaller than a default install
+- **CPU-only PyTorch**: no CUDA stack, ~0.4 GB compressed download instead of ~3.2 GB
 - Model downloaded **once** into a persistent volume, reused forever
 - API key **mandatory**, non-root, no capabilities, localhost-only port
 - ONNX Runtime included: switch to `onnx` + `int8` with one variable
