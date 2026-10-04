@@ -99,7 +99,7 @@ COPY --chmod=0755 docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 COPY --chmod=0644 docker/healthcheck.py /usr/local/bin/healthcheck.py
 
 WORKDIR /app
-USER jeff
+USER 10001:10001
 EXPOSE 8000
 VOLUME ["/models", "/data"]
 
