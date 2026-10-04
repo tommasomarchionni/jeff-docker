@@ -1,0 +1,17 @@
+site_name: jeff-docker
+site_url: https://tommasomarchionni.github.io/jeff-docker/
+repo_url: https://github.com/tommasomarchionni/jeff-docker
+theme:
+  name: material
+  features: [content.code.copy, navigation.sections]
+markdown_extensions: [admonition, pymdownx.superfences, tables]
+nav:
+  - Home: index.md
+  - Quick start: quick-start.md
+  - Configuration: configuration.md
+  - Dokploy (Proxmox LXC): dokploy.md
+  - Performance: performance.md
+  - Security: security.md
+  - Troubleshooting: troubleshooting.md
+  - Experimental:
+      - AMD ROCm: experimental/amd-rocm.md
