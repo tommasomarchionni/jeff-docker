@@ -1,52 +1,135 @@
-name: Publish
+name: Publish image
+
+# Builds and publishes the multi-arch CPU image to GitHub Container Registry
+# (GHCR) so it can be pulled directly in Compose, Dokploy or `docker run`.
+#
+# Tags produced:
+#   - "latest" / "edge"      on every push to main touching the image
+#   - "X.Y.Z" / "X.Y" / "X"  on pushed tags matching vX.Y.Z (+ "latest")
+#   - "sha-<short-sha>"      always, for exact reproducibility
+# A GitHub Release with generated notes is created for every vX.Y.Z tag.
 on:
-  push: { tags: ["v*.*.*"] }
+  push:
+    branches: [main]
+    tags: ["v*.*.*"]
+    paths:
+      - "docker/**"
+      - ".github/workflows/publish.yml"
   workflow_dispatch:
     inputs:
-      jeff_ref: { description: "Upstream Jeff ref", default: main }
+      jeff_ref:
+        description: "Upstream Jeff ref (branch, tag or SHA) to bake in"
+        required: false
+        default: "main"
+
 permissions:
-  contents: read
+  contents: write
   packages: write
   id-token: write
   attestations: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
 jobs:
   publish:
     runs-on: ubuntu-latest
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: docker/setup-qemu-action@v3
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/login-action@v3
+      - uses: actions/checkout@v7
+
+      - name: Set up QEMU (for arm64 builds)
+        uses: docker/setup-qemu-action@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
         with:
-          registry: ghcr.io
+          registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - id: meta
-        uses: docker/metadata-action@v5
+
+      - name: Compute image metadata
+        id: meta
+        uses: docker/metadata-action@v6
         with:
-          images: ghcr.io/${{ github.repository }}
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=edge,enable={{is_default_branch}}
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
-            type=raw,value=latest,enable={{is_default_branch}}
-            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
-            type=sha
-      - id: build
-        uses: docker/build-push-action@v6
+            type=semver,pattern={{major}}
+            type=sha,prefix=sha-,format=short
+
+      - name: Build and push
+        id: build
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: docker/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
-          build-args: JEFF_REF=${{ inputs.jeff_ref || 'main' }}
+          build-args: |
+            JEFF_REF=${{ inputs.jeff_ref || 'main' }}
+            JEFF_DOCKER_VERSION=${{ steps.meta.outputs.version }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           sbom: true
           provenance: mode=max
           cache-from: type=gha
           cache-to: type=gha,mode=max
-      - uses: actions/attest-build-provenance@v2
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v4
         with:
-          subject-name: ghcr.io/${{ github.repository }}
+          subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           subject-digest: ${{ steps.build.outputs.digest }}
           push-to-registry: true
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || \
+          gh release create "$GITHUB_REF_NAME" --generate-notes --verify-tag \
+            --notes "Image: \`ghcr.io/${{ env.IMAGE_NAME }}:${GITHUB_REF_NAME#v}\` (linux/amd64, linux/arm64) — digest \`${{ steps.build.outputs.digest }}\`"
+
+  verify:
+    name: Verify published image (${{ matrix.platform }})
+    needs: publish
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-latest
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
+    steps:
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Pull by digest and run checks
+        env:
+          IMAGE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ needs.publish.outputs.digest }}
+        run: |
+          docker pull --platform ${{ matrix.platform }} "$IMAGE"
+          test "$(docker image inspect -f '{{.Architecture}}' "$IMAGE")" = "${PLATFORM_ARCH:-$(echo ${{ matrix.platform }} | cut -d/ -f2)}"
+          docker run --rm --entrypoint python "$IMAGE" -c \
+            "import torch, onnxruntime, jeff.server.main; assert '+cpu' in torch.__version__; print(torch.__version__)"
+          set +e; docker run --rm "$IMAGE" 2>&1 | grep -q "JEFF_API_KEYS is empty"
+      - name: Verify build provenance attestation
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh attestation verify "oci://${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ needs.publish.outputs.digest }}" -R "${{ github.repository }}"
