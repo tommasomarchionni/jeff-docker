@@ -1,0 +1,41 @@
+# Local build from source (development / customization).
+services:
+  jeff:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      args:
+        JEFF_REF: ${JEFF_REF:-main}
+        UV_EXTRAS: ${UV_EXTRAS:-dev}
+    image: jeff-docker:local
+    container_name: jeff
+    restart: unless-stopped
+    ports:
+      - "${JEFF_BIND:-127.0.0.1}:${JEFF_HOST_PORT:-8000}:8000"
+    environment:
+      JEFF_API_KEYS: ${JEFF_API_KEYS:-}
+      JEFF_ALLOW_NO_AUTH: ${JEFF_ALLOW_NO_AUTH:-false}
+      JEFF_HOST: 0.0.0.0
+      JEFF_PORT: "8000"
+      JEFF_MODEL_ID: ${JEFF_MODEL_ID:-knowledgator/gliformer-large-v1}
+      JEFF_MODEL_PATH: ${JEFF_MODEL_PATH:-/models/gliformer-large-v1}
+      JEFF_MODEL_REVISION: ${JEFF_MODEL_REVISION:-main}
+      JEFF_DOWNLOAD_MODEL: ${JEFF_DOWNLOAD_MODEL:-true}
+      JEFF_FORCE_MODEL_DOWNLOAD: ${JEFF_FORCE_MODEL_DOWNLOAD:-false}
+      JEFF_DEVICE: ${JEFF_DEVICE:-cpu}
+      JEFF_BACKEND: ${JEFF_BACKEND:-torch}
+      JEFF_QUANT: ${JEFF_QUANT:-}
+      JEFF_THREADS: ${JEFF_THREADS:-6}
+      JEFF_MAX_BATCH: ${JEFF_MAX_BATCH:-8}
+      JEFF_MAX_WAIT_MS: ${JEFF_MAX_WAIT_MS:-10}
+      JEFF_WARMUP: ${JEFF_WARMUP:-1}
+      JEFF_RATE_LIMIT_RPS: ${JEFF_RATE_LIMIT_RPS:-4}
+      JEFF_RATE_LIMIT_BURST: ${JEFF_RATE_LIMIT_BURST:-8}
+      HF_TOKEN: ${HF_TOKEN:-}
+    volumes:
+      - jeff-models:/models
+      - jeff-data:/data
+
+volumes:
+  jeff-models:
+  jeff-data:
