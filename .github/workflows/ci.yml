@@ -1,0 +1,47 @@
+name: CI
+on:
+  push: { branches: [main] }
+  pull_request:
+permissions: { contents: read }
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: ShellCheck
+        run: shellcheck docker/entrypoint.sh
+      - name: Hadolint
+        uses: hadolint/hadolint-action@v3.1.0
+        with: { dockerfile: docker/Dockerfile }
+      - name: Validate Compose files
+        run: |
+          cp .env.example .env
+          sed -i 's/^JEFF_API_KEYS=.*/JEFF_API_KEYS=ci-dummy/' .env
+          docker network create dokploy-network || true
+          for f in docker-compose.yml docker-compose.prebuilt.yml docker-compose.dokploy.yml; do
+            docker compose -f "$f" config -q
+          done
+          docker compose -f docker-compose.yml -f docker-compose.rocm.experimental.yml config -q
+      - name: Bats tests
+        run: |
+          sudo apt-get update && sudo apt-get install -y bats
+          bats tests
+  build:
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build CPU image (amd64)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile
+          load: true
+          tags: jeff-docker:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Smoke test image
+        run: |
+          docker run --rm --entrypoint python jeff-docker:ci -c "import jeff; print('ok')"
+          docker run --rm --entrypoint cat jeff-docker:ci /app/.jeff-revision
