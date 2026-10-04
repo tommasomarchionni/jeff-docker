@@ -1,4 +1,8 @@
-# Local build from source (development / customization).
+# Build the image locally from docker/Dockerfile.
+# Usage:
+#   cp .env.example .env   # set JEFF_API_KEYS
+#   docker compose up -d --build
+# Docs: https://tommasomarchionni.github.io/jeff-docker/docker-compose-guide/
 services:
   jeff:
     build:
@@ -6,36 +10,72 @@ services:
       dockerfile: docker/Dockerfile
       args:
         JEFF_REF: ${JEFF_REF:-main}
-        UV_EXTRAS: ${UV_EXTRAS:-dev}
+        UV_EXTRAS: ${UV_EXTRAS:-onnx}
+        TORCH_INDEX_URL: ${TORCH_INDEX_URL:-https://download.pytorch.org/whl/cpu}
+        JEFF_DOCKER_VERSION: local
     image: jeff-docker:local
-    container_name: jeff
+    container_name: ${JEFF_CONTAINER_NAME:-jeff}
     restart: unless-stopped
     ports:
+      # Bound to localhost by default. Set JEFF_BIND=0.0.0.0 only behind a
+      # firewall or reverse proxy.
       - "${JEFF_BIND:-127.0.0.1}:${JEFF_HOST_PORT:-8000}:8000"
     environment:
+      # --- Authentication (required) --------------------------------------
       JEFF_API_KEYS: ${JEFF_API_KEYS:-}
       JEFF_ALLOW_NO_AUTH: ${JEFF_ALLOW_NO_AUTH:-false}
-      JEFF_HOST: 0.0.0.0
-      JEFF_PORT: "8000"
+      # --- Model ----------------------------------------------------------
       JEFF_MODEL_ID: ${JEFF_MODEL_ID:-knowledgator/gliformer-large-v1}
       JEFF_MODEL_PATH: ${JEFF_MODEL_PATH:-/models/gliformer-large-v1}
       JEFF_MODEL_REVISION: ${JEFF_MODEL_REVISION:-main}
       JEFF_DOWNLOAD_MODEL: ${JEFF_DOWNLOAD_MODEL:-true}
       JEFF_FORCE_MODEL_DOWNLOAD: ${JEFF_FORCE_MODEL_DOWNLOAD:-false}
+      JEFF_MODEL_NAME: ${JEFF_MODEL_NAME:-}
+      JEFF_MODEL_ALIASES: ${JEFF_MODEL_ALIASES:-}
+      HF_TOKEN: ${HF_TOKEN:-}
+      # --- Runtime (CPU-first) --------------------------------------------
       JEFF_DEVICE: ${JEFF_DEVICE:-cpu}
       JEFF_BACKEND: ${JEFF_BACKEND:-torch}
       JEFF_QUANT: ${JEFF_QUANT:-}
+      JEFF_ONNX_PATH: ${JEFF_ONNX_PATH:-}
+      JEFF_DTYPE: ${JEFF_DTYPE:-}
       JEFF_THREADS: ${JEFF_THREADS:-6}
+      JEFF_WARMUP: ${JEFF_WARMUP:-true}
+      # --- Batching and limits --------------------------------------------
       JEFF_MAX_BATCH: ${JEFF_MAX_BATCH:-8}
       JEFF_MAX_WAIT_MS: ${JEFF_MAX_WAIT_MS:-10}
-      JEFF_WARMUP: ${JEFF_WARMUP:-1}
+      JEFF_MAX_QUEUE: ${JEFF_MAX_QUEUE:-}
       JEFF_RATE_LIMIT_RPS: ${JEFF_RATE_LIMIT_RPS:-4}
       JEFF_RATE_LIMIT_BURST: ${JEFF_RATE_LIMIT_BURST:-8}
-      HF_TOKEN: ${HF_TOKEN:-}
+      JEFF_MAX_QUESTIONS: ${JEFF_MAX_QUESTIONS:-}
+      JEFF_MAX_LABELS: ${JEFF_MAX_LABELS:-}
+      JEFF_MAX_STATE_CHARS: ${JEFF_MAX_STATE_CHARS:-}
+      # --- Prompt / calibration (advanced) --------------------------------
+      JEFF_NOUL_MODE: ${JEFF_NOUL_MODE:-}
+      JEFF_ISOLATE: ${JEFF_ISOLATE:-}
+      JEFF_STATE_FORMAT: ${JEFF_STATE_FORMAT:-}
+      JEFF_TEMPERATURE: ${JEFF_TEMPERATURE:-}
     volumes:
+      # Model weights (+ exported ONNX encoder): downloaded once, reused forever.
       - jeff-models:/models
+      # Hugging Face and generic caches.
       - jeff-data:/data
+    # Hardening: no privilege escalation, no Linux capabilities needed.
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    # Resource limits: protect the host (important on small VPS / Proxmox LXC).
+    mem_limit: ${JEFF_MEM_LIMIT:-10g}
+    cpus: ${JEFF_CPU_LIMIT:-8}
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 volumes:
   jeff-models:
+    name: ${JEFF_VOLUME_PREFIX:-jeff}-models
   jeff-data:
+    name: ${JEFF_VOLUME_PREFIX:-jeff}-data

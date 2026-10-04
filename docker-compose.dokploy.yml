@@ -1,4 +1,8 @@
-# Dokploy: no host ports, routed by Dokploy's Traefik over dokploy-network.
+# Dokploy Compose service (prebuilt GHCR image).
+# - No host ports: traffic arrives through Dokploy's Traefik on dokploy-network.
+# - Configure variables in Dokploy -> Environment, domain in Dokploy -> Domains
+#   (container port 8000).
+# Docs: https://tommasomarchionni.github.io/jeff-docker/dokploy/
 services:
   jeff:
     image: ghcr.io/tommasomarchionni/jeff-docker:${JEFF_DOCKER_TAG:-latest}
@@ -6,33 +10,59 @@ services:
     expose:
       - "8000"
     environment:
+      # --- Authentication (required) --------------------------------------
       JEFF_API_KEYS: ${JEFF_API_KEYS:-}
       JEFF_ALLOW_NO_AUTH: ${JEFF_ALLOW_NO_AUTH:-false}
-      JEFF_HOST: 0.0.0.0
-      JEFF_PORT: "8000"
+      # --- Model ----------------------------------------------------------
       JEFF_MODEL_ID: ${JEFF_MODEL_ID:-knowledgator/gliformer-large-v1}
       JEFF_MODEL_PATH: ${JEFF_MODEL_PATH:-/models/gliformer-large-v1}
       JEFF_MODEL_REVISION: ${JEFF_MODEL_REVISION:-main}
       JEFF_DOWNLOAD_MODEL: ${JEFF_DOWNLOAD_MODEL:-true}
       JEFF_FORCE_MODEL_DOWNLOAD: ${JEFF_FORCE_MODEL_DOWNLOAD:-false}
+      JEFF_MODEL_NAME: ${JEFF_MODEL_NAME:-}
+      JEFF_MODEL_ALIASES: ${JEFF_MODEL_ALIASES:-}
+      HF_TOKEN: ${HF_TOKEN:-}
+      # --- Runtime (CPU-first) --------------------------------------------
       JEFF_DEVICE: ${JEFF_DEVICE:-cpu}
       JEFF_BACKEND: ${JEFF_BACKEND:-torch}
       JEFF_QUANT: ${JEFF_QUANT:-}
+      JEFF_ONNX_PATH: ${JEFF_ONNX_PATH:-}
+      JEFF_DTYPE: ${JEFF_DTYPE:-}
       JEFF_THREADS: ${JEFF_THREADS:-6}
+      JEFF_WARMUP: ${JEFF_WARMUP:-true}
+      # --- Batching and limits --------------------------------------------
       JEFF_MAX_BATCH: ${JEFF_MAX_BATCH:-8}
       JEFF_MAX_WAIT_MS: ${JEFF_MAX_WAIT_MS:-10}
-      JEFF_WARMUP: ${JEFF_WARMUP:-1}
+      JEFF_MAX_QUEUE: ${JEFF_MAX_QUEUE:-}
       JEFF_RATE_LIMIT_RPS: ${JEFF_RATE_LIMIT_RPS:-4}
       JEFF_RATE_LIMIT_BURST: ${JEFF_RATE_LIMIT_BURST:-8}
-      HF_TOKEN: ${HF_TOKEN:-}
+      JEFF_MAX_QUESTIONS: ${JEFF_MAX_QUESTIONS:-}
+      JEFF_MAX_LABELS: ${JEFF_MAX_LABELS:-}
+      JEFF_MAX_STATE_CHARS: ${JEFF_MAX_STATE_CHARS:-}
+      # --- Prompt / calibration (advanced) --------------------------------
+      JEFF_NOUL_MODE: ${JEFF_NOUL_MODE:-}
+      JEFF_ISOLATE: ${JEFF_ISOLATE:-}
+      JEFF_STATE_FORMAT: ${JEFF_STATE_FORMAT:-}
+      JEFF_TEMPERATURE: ${JEFF_TEMPERATURE:-}
     volumes:
+      # Named volumes survive redeploys and can be backed up from Dokploy.
+      # Model weights (+ exported ONNX encoder): downloaded once, reused forever.
       - jeff-models:/models
+      # Hugging Face and generic caches.
       - jeff-data:/data
-    deploy:
-      resources:
-        limits:
-          cpus: "${JEFF_CPU_LIMIT:-8}"
-          memory: ${JEFF_MEM_LIMIT:-10g}
+    # Hardening: no privilege escalation, no Linux capabilities needed.
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    # Resource limits: protect the host (important on small VPS / Proxmox LXC).
+    mem_limit: ${JEFF_MEM_LIMIT:-10g}
+    cpus: ${JEFF_CPU_LIMIT:-8}
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     networks:
       - dokploy-network
 
