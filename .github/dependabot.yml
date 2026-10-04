@@ -1,0 +1,28 @@
+version: 2
+updates:
+  # Keep GitHub Actions used in workflows up to date.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels: ["dependencies", "github-actions"]
+    commit-message:
+      prefix: "chore(deps)"
+
+  # Keep the Python base image fresh.
+  - package-ecosystem: "docker"
+    directory: "/docker"
+    schedule:
+      interval: "weekly"
+    labels: ["dependencies", "docker"]
+    commit-message:
+      prefix: "chore(deps)"
+
+  # Keep the docs toolchain fresh.
+  - package-ecosystem: "pip"
+    directory: "/docs"
+    schedule:
+      interval: "monthly"
+    labels: ["dependencies", "docs"]
+    commit-message:
+      prefix: "chore(deps)"
