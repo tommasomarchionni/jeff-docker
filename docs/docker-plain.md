@@ -13,9 +13,9 @@ docker run -d --name jeff \
   -v jeff-data:/data \
   -e JEFF_API_KEYS="$(openssl rand -hex 32)" \
   -e JEFF_DEVICE=cpu \
-  -e JEFF_THREADS=6 \
+  -e JEFF_THREADS=4 \
   -e JEFF_RATE_LIMIT_RPS=4 \
-  --memory 10g --cpus 8 \
+  --memory 10g \
   --security-opt no-new-privileges:true --cap-drop ALL \
   ghcr.io/tommasomarchionni/jeff-docker:latest
 

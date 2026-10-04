@@ -187,7 +187,6 @@ jobs:
             -e "s|^JEFF_MODEL_PATH=.*|JEFF_MODEL_PATH=/models/gliformer-base-v1|" \
             -e "s/^JEFF_NOUL_MODE=.*/JEFF_NOUL_MODE=single/" \
             -e "s/^JEFF_THREADS=.*/JEFF_THREADS=2/" \
-            -e "s/^JEFF_CPU_LIMIT=.*/JEFF_CPU_LIMIT=2/" \
             -e "s/^JEFF_MEM_LIMIT=.*/JEFF_MEM_LIMIT=6g/" .env
       - name: docker compose up --build --wait
         run: docker compose -f ${{ matrix.file }} up -d --build --wait --wait-timeout 1200

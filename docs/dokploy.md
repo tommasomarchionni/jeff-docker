@@ -54,13 +54,21 @@ openssl rand -hex 32
     JEFF_API_KEYS=<paste the openssl key>
     JEFF_DOCKER_TAG=0.2.0
     JEFF_DEVICE=cpu
-    JEFF_THREADS=6
+    JEFF_THREADS=4
     JEFF_MAX_BATCH=8
     JEFF_RATE_LIMIT_RPS=4
     JEFF_RATE_LIMIT_BURST=8
-    JEFF_CPU_LIMIT=8
+    JEFF_CPU_LIMIT=0
     JEFF_MEM_LIMIT=10g
     ```
+
+    !!! warning "Match the limits to the host"
+        `JEFF_CPU_LIMIT` must not exceed the CPUs Docker can see (run
+        `nproc` on the Dokploy host / inside the LXC). With a 4-core LXC and
+        `JEFF_CPU_LIMIT=8` the deploy fails with
+        `range of CPUs is from 0.01 to 4.00, as there are only 4 CPUs available`.
+        Use `0` (no limit) or a value ≤ `nproc`, and keep `JEFF_THREADS` ≤
+        `nproc` (e.g. `4` on 4 cores, `6` on 8 cores).
 
     Everything else has sane defaults; see
     [Environment variables](environment-variables.md). Pin
@@ -184,6 +192,7 @@ pinned tags, updates are a deliberate change of `JEFF_DOCKER_TAG`.
 | Variables ignored | Custom compose file without `${VAR}` references (see warning above) |
 | Model re-downloaded on every deploy | Mode C without volume mounts, or volumes deleted |
 | `network dokploy-network not found` | Running the Dokploy compose outside Dokploy: `docker network create dokploy-network` |
+| `range of CPUs is from 0.01 to N.00, as there are only N CPUs available` | `JEFF_CPU_LIMIT` is higher than the CPUs of the host/LXC: set it to `0` or ≤ `nproc` and redeploy |
 | Container killed, exit 137 | Raise LXC memory or lower `JEFF_MEM_LIMIT`/`JEFF_MAX_BATCH` |
 
 More in [Troubleshooting](troubleshooting.md).

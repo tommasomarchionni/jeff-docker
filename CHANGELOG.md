@@ -6,6 +6,11 @@ versioning: [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+- Default `JEFF_CPU_LIMIT` is now `0` (no limit): the previous default `8`
+  made deploys fail on hosts/LXC with fewer than 8 CPUs ("range of CPUs is
+  from 0.01 to N"). Default `JEFF_THREADS` lowered to `4`.
+
 ## [0.2.0] - 2026-10-04
 
 ### Changed

@@ -30,7 +30,7 @@ services:
       JEFF_QUANT: ${JEFF_QUANT:-}
       JEFF_ONNX_PATH: ${JEFF_ONNX_PATH:-}
       JEFF_DTYPE: ${JEFF_DTYPE:-}
-      JEFF_THREADS: ${JEFF_THREADS:-6}
+      JEFF_THREADS: ${JEFF_THREADS:-4}
       JEFF_WARMUP: ${JEFF_WARMUP:-true}
       # --- Batching and limits --------------------------------------------
       JEFF_MAX_BATCH: ${JEFF_MAX_BATCH:-8}
@@ -58,7 +58,9 @@ services:
       - ALL
     # Resource limits: protect the host (important on small VPS / Proxmox LXC).
     mem_limit: ${JEFF_MEM_LIMIT:-10g}
-    cpus: ${JEFF_CPU_LIMIT:-8}
+    # 0 = no CPU limit. If set, it must not exceed the CPUs visible to Docker
+    # (e.g. the cores assigned to a Proxmox LXC), or the deploy fails.
+    cpus: ${JEFF_CPU_LIMIT:-0}
     logging:
       driver: json-file
       options:

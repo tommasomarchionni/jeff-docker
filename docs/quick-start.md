@@ -72,7 +72,7 @@ Open `.env` in any text editor and check:
 |---|---|---|
 | `JEFF_THREADS` | `4` | `6`–`8` |
 | `JEFF_MEM_LIMIT` | `6g` | `10g` |
-| `JEFF_CPU_LIMIT` | `4` | `8` |
+| `JEFF_CPU_LIMIT` | `0` (no limit) or ≤ `nproc` | `0` or ≤ `nproc` |
 
 On Docker Desktop (macOS/Windows), also make sure **Settings → Resources**
 gives Docker at least 6 GB of memory.

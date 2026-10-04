@@ -29,7 +29,7 @@ values are dropped by the entrypoint so upstream defaults apply.
 | `JEFF_VOLUME_PREFIX` | `jeff` | local, prebuilt | Volume names `<prefix>-models`, `<prefix>-data` |
 | `JEFF_BIND` | `127.0.0.1` | local, prebuilt | Host interface for the port |
 | `JEFF_HOST_PORT` | `8000` | local, prebuilt | Host port |
-| `JEFF_CPU_LIMIT` | `8` | all | CPU limit (`cpus`) |
+| `JEFF_CPU_LIMIT` | `0` (no limit) | all | CPU limit (`cpus`). Must be ≤ CPUs visible to Docker (`nproc`), otherwise the deploy fails with "range of CPUs is from 0.01 to N" |
 | `JEFF_MEM_LIMIT` | `10g` | all | Memory limit (`mem_limit`) |
 
 ## Jeff runtime (upstream)
@@ -41,7 +41,7 @@ values are dropped by the entrypoint so upstream defaults apply.
 | `JEFF_QUANT` | — | `fp32` | ONNX precision: `fp32` or `int8` |
 | `JEFF_ONNX_PATH` | — | `<model>/onnx/encoder[.int8].onnx` | Custom ONNX encoder path |
 | `JEFF_DTYPE` | — | `bf16` on CUDA, `float32` on CPU | Torch dtype |
-| `JEFF_THREADS` | `6` | all cores | Inference threads (also sets `OMP_NUM_THREADS`, `MKL_NUM_THREADS`) |
+| `JEFF_THREADS` | `4` | all cores | Inference threads (also sets `OMP_NUM_THREADS`, `MKL_NUM_THREADS`) |
 | `JEFF_WARMUP` | `true` | off | Run a warm-up inference at start (`true`/`1`) |
 | `JEFF_COMPILE` / `JEFF_COMPILE_MODE` | — | off | `torch.compile` (GPU, advanced) |
 | `JEFF_ATTN` | — | `auto` | Attention kernel: `auto`, `flash`, `eager` |

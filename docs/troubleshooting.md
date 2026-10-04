@@ -31,6 +31,12 @@ sudo chown -R 10001:10001 /srv/jeff/models
 - Private repo or rate limit: set `HF_TOKEN`.
 - Behind a proxy: pass `HTTPS_PROXY`/`NO_PROXY` to the container.
 
+## `range of CPUs is from 0.01 to N.00, as there are only N CPUs available`
+
+`JEFF_CPU_LIMIT` exceeds the CPUs visible to Docker (common in a Proxmox
+LXC with fewer cores). Set `JEFF_CPU_LIMIT=0` (no limit) or a value ≤
+`nproc`, and `JEFF_THREADS` ≤ `nproc`, then redeploy.
+
 ## Exit code 137 / container killed
 
 Out of memory. Raise Docker Desktop / LXC memory, raise `JEFF_MEM_LIMIT`,
