@@ -12,7 +12,7 @@ jobs:
         run: shellcheck docker/entrypoint.sh
       - name: Hadolint
         uses: hadolint/hadolint-action@v3.1.0
-        with: { dockerfile: docker/Dockerfile }
+        with: { dockerfile: docker/Dockerfile, config: .hadolint.yaml }
       - name: Validate Compose files
         run: |
           cp .env.example .env
