@@ -1,0 +1,211 @@
+name: Smoke test (end-to-end)
+
+# Builds the image, downloads the small gliformer-base-v1 model, starts the
+# container and exercises the real HTTP API (auth, models, systemone, ONNX).
+# Runs weekly too, to catch upstream Jeff changes early.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "docker/**"
+      - "docker-compose*.yml"
+      - ".github/workflows/smoke-test.yml"
+  pull_request:
+    paths:
+      - "docker/**"
+      - ".github/workflows/smoke-test.yml"
+  schedule:
+    - cron: "0 4 * * 1"
+  workflow_dispatch:
+    inputs:
+      jeff_ref:
+        description: "Upstream Jeff ref to test"
+        required: false
+        default: "main"
+
+permissions:
+  contents: read
+
+env:
+  MODEL_ID: knowledgator/gliformer-base-v1
+  API_KEY: smoke-test-key
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        backend: [torch, onnx]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+      - name: Build image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: docker/Dockerfile
+          load: true
+          tags: jeff-docker:smoke
+          build-args: JEFF_REF=${{ inputs.jeff_ref || 'main' }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Cache model weights
+        uses: actions/cache@v6
+        with:
+          path: /tmp/models
+          key: model-${{ env.MODEL_ID }}-${{ matrix.backend }}-v1
+
+      - name: Start container
+        run: |
+          mkdir -p /tmp/models && sudo chown -R 10001:10001 /tmp/models
+          docker run -d --name jeff -p 127.0.0.1:8000:8000 \
+            -v /tmp/models:/models \
+            -e JEFF_API_KEYS="$API_KEY" \
+            -e JEFF_MODEL_ID="$MODEL_ID" \
+            -e JEFF_MODEL_PATH=/models/gliformer-base-v1 \
+            -e JEFF_NOUL_MODE=single \
+            -e JEFF_BACKEND=${{ matrix.backend }} \
+            -e JEFF_QUANT=${{ matrix.backend == 'onnx' && 'int8' || '' }} \
+            -e JEFF_THREADS=2 \
+            -e JEFF_WARMUP=true \
+            jeff-docker:smoke
+
+      - name: Wait for healthy
+        run: |
+          for i in $(seq 1 120); do
+            status=$(docker inspect -f '{{.State.Health.Status}}' jeff 2>/dev/null || echo missing)
+            curl -sf http://127.0.0.1:8000/healthz && break
+            [ "$status" = "exited" ] && break
+            sleep 5
+          done
+          docker logs jeff 2>&1 | tail -40
+          curl -sf http://127.0.0.1:8000/healthz
+
+      - name: Container reports healthy (Docker HEALTHCHECK)
+        run: |
+          for i in $(seq 1 30); do
+            [ "$(docker inspect -f '{{.State.Health.Status}}' jeff)" = "healthy" ] && exit 0
+            sleep 5
+          done
+          docker inspect -f '{{json .State.Health}}' jeff; exit 1
+
+      - name: Rejects missing or wrong API key (401)
+        run: |
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8000/v1/models)" = "401"
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8000/v1/models -H 'Authorization: Bearer wrong')" = "401"
+
+      - name: Rejects invalid payloads (422)
+        run: |
+          code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8000/v1/systemone \
+            -H "Authorization: Bearer $API_KEY" -H "Content-Type: application/json" \
+            -d '{"state":"x","model":"jev-latest","questions":{"q":{"type":"choice","criteria":["not","a","dict"]}}}')
+          test "$code" = "422"
+
+      - name: Lists models
+        run: |
+          curl -sf http://127.0.0.1:8000/v1/models -H "Authorization: Bearer $API_KEY" | tee /tmp/models.json
+          jq -e '.models | map(.name) | index("jev-latest")' /tmp/models.json
+
+      - name: Answers score, choice and noul questions
+        run: |
+          curl -sf http://127.0.0.1:8000/v1/systemone \
+            -H "Authorization: Bearer $API_KEY" -H "Content-Type: application/json" \
+            -d '{
+              "state": "The export button crashes on Safari and users cannot download reports.",
+              "model": "jev-latest",
+              "questions": {
+                "severity": {"type": "score", "instructions": "How severe is this?", "criteria": ["cosmetic", "degraded", "blocking"]},
+                "area": {"type": "choice", "instructions": "Which area?", "criteria": {"frontend": "UI and browser", "backend": "API and server", "infra": null}},
+                "regression": {"type": "noul", "instructions": "Is this a regression?"}
+              }
+            }' | tee /tmp/answer.json
+          jq -e '.answers.severity.score != null and .answers.area.choice != null and .answers.regression.noul != null' /tmp/answer.json
+
+      - name: Restart reuses the persisted model (no re-download)
+        run: |
+          docker restart jeff
+          for i in $(seq 1 60); do curl -sf http://127.0.0.1:8000/healthz && break; sleep 3; done
+          docker logs jeff 2>&1 | grep -q "Model already present"
+
+      - name: Stats reflect the configured backend
+        run: |
+          curl -sf http://127.0.0.1:8000/stats -H "Authorization: Bearer $API_KEY" | tee /tmp/stats.json | jq .
+          jq -e '.backend.backend == "${{ matrix.backend }}" and .requests >= 1' /tmp/stats.json
+
+      - name: Latency sample (informational)
+        run: |
+          for i in 1 2 3 4 5; do
+            curl -s -o /dev/null -w '%{time_total}s\n' http://127.0.0.1:8000/v1/systemone \
+              -H "Authorization: Bearer $API_KEY" -H "Content-Type: application/json" \
+              -d '{"state":"Login page is slow on mobile.","model":"jev-latest","questions":{"severity":{"type":"score","criteria":["low","medium","high"]}}}'
+          done | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Rate limit returns 429 when exceeded
+        run: |
+          docker rm -f jeff
+          docker run -d --name jeff -p 127.0.0.1:8000:8000 -v /tmp/models:/models \
+            -e JEFF_API_KEYS="$API_KEY" -e JEFF_MODEL_PATH=/models/gliformer-base-v1 \
+            -e JEFF_DOWNLOAD_MODEL=false -e JEFF_NOUL_MODE=single -e JEFF_BACKEND=${{ matrix.backend }} \
+            -e JEFF_QUANT=${{ matrix.backend == 'onnx' && 'int8' || '' }} \
+            -e JEFF_RATE_LIMIT_RPS=1 -e JEFF_RATE_LIMIT_BURST=1 jeff-docker:smoke
+          for i in $(seq 1 60); do curl -sf http://127.0.0.1:8000/healthz && break; sleep 3; done
+          codes=""
+          for i in 1 2 3 4 5; do
+            codes="$codes $(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8000/v1/systemone \
+              -H "Authorization: Bearer $API_KEY" -H "Content-Type: application/json" \
+              -d '{"state":"x","model":"jev-latest","questions":{"q":{"type":"noul"}}}')"
+          done
+          echo "codes:$codes"; [[ "$codes" == *429* ]]
+
+      - name: Logs on failure
+        if: failure()
+        run: docker logs jeff || true
+
+      - name: Fix cache ownership
+        if: always()
+        run: sudo chown -R "$(id -u):$(id -g)" /tmp/models || true
+
+  compose:
+    name: Compose stack (${{ matrix.file }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        file: [docker-compose.yml]
+    steps:
+      - uses: actions/checkout@v7
+      - name: Prepare .env (small model, CI limits)
+        run: |
+          cp .env.example .env
+          sed -i \
+            -e "s/^JEFF_API_KEYS=.*/JEFF_API_KEYS=$API_KEY/" \
+            -e "s|^JEFF_MODEL_ID=.*|JEFF_MODEL_ID=$MODEL_ID|" \
+            -e "s|^JEFF_MODEL_PATH=.*|JEFF_MODEL_PATH=/models/gliformer-base-v1|" \
+            -e "s/^JEFF_NOUL_MODE=.*/JEFF_NOUL_MODE=single/" \
+            -e "s/^JEFF_THREADS=.*/JEFF_THREADS=2/" \
+            -e "s/^JEFF_CPU_LIMIT=.*/JEFF_CPU_LIMIT=2/" \
+            -e "s/^JEFF_MEM_LIMIT=.*/JEFF_MEM_LIMIT=6g/" .env
+      - name: docker compose up --build --wait
+        run: docker compose -f ${{ matrix.file }} up -d --build --wait --wait-timeout 1200
+      - name: API answers through the published port
+        run: |
+          curl -sf http://127.0.0.1:8000/healthz
+          curl -sf http://127.0.0.1:8000/v1/systemone \
+            -H "Authorization: Bearer $API_KEY" -H "Content-Type: application/json" \
+            -d '{"state":"Checkout fails with a 500 error.","model":"jev-latest","questions":{"severity":{"type":"score","criteria":["low","medium","high"]}}}' \
+            | jq -e '.answers.severity.score != null'
+      - name: Named volumes exist and persist across down/up
+        run: |
+          docker volume inspect jeff-models jeff-data >/dev/null
+          docker compose -f ${{ matrix.file }} down
+          docker compose -f ${{ matrix.file }} up -d --wait --wait-timeout 600
+          docker compose -f ${{ matrix.file }} logs jeff | grep -q "Model already present"
+      - name: Port is bound to localhost only
+        run: docker compose -f ${{ matrix.file }} port jeff 8000 | grep -q '^127.0.0.1:'
+      - name: Logs on failure
+        if: failure()
+        run: docker compose -f ${{ matrix.file }} logs || true
