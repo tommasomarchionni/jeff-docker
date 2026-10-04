@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation
+    url: https://tommasomarchionni.github.io/jeff-docker/
+    about: Read the guides and the FAQ first.
+  - name: Upstream Jeff (model / API behavior)
+    url: https://github.com/logan-markewich/jeff/issues
+    about: Issues about inference quality or the API itself belong upstream.
+  - name: Security vulnerability
+    url: https://github.com/tommasomarchionni/jeff-docker/security/advisories/new
+    about: Report vulnerabilities privately, never in a public issue.

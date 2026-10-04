@@ -1,0 +1,69 @@
+name: Bug report
+description: Something isn't working as expected.
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug.
+        **Never paste your `JEFF_API_KEYS`, `HF_TOKEN` or full logs containing secrets.**
+  - type: input
+    id: version
+    attributes:
+      label: Image tag / version
+      placeholder: "ghcr.io/tommasomarchionni/jeff-docker:0.1.0, or a git commit SHA"
+    validations:
+      required: true
+  - type: dropdown
+    id: environment
+    attributes:
+      label: Where are you running it?
+      options:
+        - Docker Compose (local build)
+        - Docker Compose (prebuilt image)
+        - Dokploy (Compose)
+        - Dokploy (Application)
+        - Plain Docker
+        - Proxmox LXC
+        - Other (describe below)
+    validations:
+      required: true
+  - type: dropdown
+    id: arch
+    attributes:
+      label: Architecture / OS
+      options:
+        - linux/amd64
+        - linux/arm64
+        - macOS (Docker Desktop, Apple Silicon)
+        - macOS (Docker Desktop, Intel)
+        - Windows (Docker Desktop / WSL2)
+    validations:
+      required: true
+  - type: dropdown
+    id: backend
+    attributes:
+      label: Backend
+      options:
+        - torch (CPU)
+        - onnx fp32
+        - onnx int8
+        - experimental GPU (ROCm / CUDA)
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: A clear description of the bug and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: Output of `docker logs <container>`, with any secret values redacted.
+      render: shell
+  - type: textarea
+    id: config
+    attributes:
+      label: Configuration
+      description: Your compose file / environment variables, with secrets removed.
